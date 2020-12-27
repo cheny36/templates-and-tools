@@ -1,4 +1,4 @@
 # Templates
-## @author Yi Chen
+### @author Yi Chen
 
 This is my repository for template scripts.
