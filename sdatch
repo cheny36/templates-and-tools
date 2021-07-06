@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+"""
+@author Yi Chen
+@date Jul 6 2021
+"""
+
+import argparse
+import tempfile
+from datetime import date
+import subprocess
+
+
+def set_defaults():
+    return
+
+def check_script():
+    return
+
+
+def write_command_script(command, params):
+    today=date.today()
+    temp = tempfile.NamedTemporaryFile(mode="w", delete=False)
+
+    temp.write("#!/bin/bash\n")
+    temp.write("\n")
+    temp.write("echo '#!/bin/bash'\n")
+    temp.write("echo '#SBATCH -J " + params.name + "'\n")
+    temp.write("echo '#SBATCH --cpus-per-task=" + str(params.cpus) + "'\n")
+    temp.write("echo '#SBATCH --mem=" + str(params.mem) + "G'\n")
+    temp.write("echo '#SBATCH --time=" + params.time + "'\n")
+    temp.write("echo '#SBATCH --qos=dpart'\n")
+    temp.write("echo '#SBATCH -o " + params.name + "_" +
+            today.strftime("%m%d%Y") + ".log'\n")
+    temp.write("echo '#SBATCH --mail-type=END,TIME_LIMIT_80'\n")
+    temp.write("echo 'jobid: $SLURM_JOB_ID'\n")
+    temp.write("echo '" + " ".join(command) + "'\n")
+    temp.write(" ".join(command))
+
+    temp.close()
+    return temp.name
+
+def submit_script(tfname, params):
+    today=date.today()
+    submission = "sbatch" + \
+        " -J " + params.name + \
+        " --cpus-per-task=" + str(params.cpus) + \
+        " --mem=" + str(params.mem) + "G" + \
+        " --time=" + params.time + \
+        " --qos=dpart" + \
+        " --mail-type=END,TIME_LIMIT_80" + \
+        " --output=" + params.name + "_" + today.strftime("%m%d%Y") + \
+            ".log" + \
+        " " + tfname
+    if(params.dryrun):
+        print(tfname)
+        print(submission)
+    else:
+        subprocess.run(submission)
+        return 
+    
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Wrapper script for sbatch.")
+    parser.add_argument("-n", "--name", metavar="Job Name", help="Job Name")
+    parser.add_argument("-c", "--cpus", default=1, type=int, metavar="N",
+            help="Number of cores")
+    parser.add_argument("-m", "--mem", default=2, type=int, metavar="N",
+            help="Memory allocated (in gigabytes)")
+    parser.add_argument("-t", "--time", default="2:00:00",
+            metavar="d-hh:mm:ss", help="time limit")
+    parser.add_argument("-d", "--dryrun", default=False, action='store_true',
+            help="""Do not submit the script, only prints the name of the script
+            and how it would submission command.""")
+    parser.add_argument("command", metavar="CMD", nargs=argparse.REMAINDER,
+            help="command to schedule")
+    params = parser.parse_args()
+    #check_script()
+    #set_defaults()
+    tfname = write_command_script(params.command, params)
+    submit_script(tfname, params)
+    
