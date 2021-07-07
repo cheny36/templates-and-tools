@@ -9,14 +9,41 @@ import argparse
 import tempfile
 from datetime import date
 import subprocess
+import os.path
+import shutil
 
 
 def set_defaults():
     return
 
-def check_script():
-    return
+def run_anyways():
+    run = None
+    while(run != "y" and run != "n"):
+        run = input("run anyways? y/n ").strip().lower()[0]
+    if(run == "y"):
+        return
+    else:
+        exit()
 
+def check_script(command):
+    if(os.path.isfile(command[0])): #running via file; so check for shebang
+        with open(command[0]) as f:
+            firstline = f.readline().split()
+            if(firstline[0].startswith("#!")):
+                if(len(firstline) == 1):
+                    return
+                else: #check if in path
+                    if(shutil.which(firstline[1])):
+                        return
+                    else:
+                        print("Cannot find script: " + firstline[1])
+                        run_anyways()
+    else: #check if in path
+        if(shutil.which(command[0])):
+            return
+        else:
+            print("Cannot find script: " + command[0])
+            run_anyways()
 
 def write_command_script(command, params):
     today=date.today()
@@ -77,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("command", metavar="CMD", nargs=argparse.REMAINDER,
             help="command to schedule")
     params = parser.parse_args()
-    #check_script()
+    check_script(params.command)
     #set_defaults()
     tfname = write_command_script(params.command, params)
     submit_script(tfname, params)
