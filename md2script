@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+
+"""
+@author Yi Chen
+@date Jul 12 2021
+"""
+
+import argparse
+import sys
+import tempfile
+import os.path
+import itertools
+import subprocess
+import re
+
+def get_chunk_boundaries(Rmd):
+    begin = []    
+    end = []
+    rnge = []
+    with open(Rmd) as f:
+        for index, line in enumerate(f, start=1):
+            if line.startswith("```{r"):
+                begin.append(index)
+            elif line.startswith("```"):
+                end.append(index)
+    if len(begin) != len(end): 
+        sys.exit("different number of chunk begins and ends")
+    for i in range(0, len(begin)):
+        rnge.append([begin[i], end[i]])
+    return(rnge)
+
+def get_line_boundaries(lines):
+    if lines == None:
+        return([[-1, sys.maxsize]])
+    x = lines.split(",")
+    z = []
+    for i in x:
+        y=i.split("-")
+        if not y[0]: y[0] = -1
+        if len(y) > 1 and not y[1]: y[1] = sys.maxsize # I know python3 int is unbounded
+        y = [int(j) for j in y]
+        z.append(y)
+    return(z)
+
+def intersect(lines, chunks):
+    fin = []
+    for i in lines:
+        for index, chunk in enumerate(chunks):
+            if len(i) > 1:
+                if (i[0] < chunk[1] and i[1] > chunk[0]):
+                    fin.append(index)
+            else:
+                if (i[0] < chunk[1] and i[0] > chunk[0]):
+                    fin.append(index)
+    return(fin)
+
+
+def ranges(i):
+    # Adapted from user bossylobster
+    # https://stackoverflow.com/questions/4628333/converting-a-list-of-integers-into-range-in-python
+    for a, b in itertools.groupby(enumerate(i), lambda pair: pair[1] - pair[0]):
+        b = list(b)
+        if b[0][1] == b[-1][1]:
+            yield "chunk" + str(b[0][1])
+        else:
+            yield "chunks" + str(b[0][1]) + "-" + str(b[-1][1])
+
+def get_name(pref, des):
+    pref = re.sub('_', '', pref)
+    return(pref + "_" + "_".join(list(ranges(des))))
+
+def print_chunks(chunks, des, Rmd):
+    if len(des) == 0:
+        sys.exit("No code chunks intersect chosen lines")
+
+    sedcmd = []
+    tf = tempfile.NamedTemporaryFile(mode="w", delete=False)
+    tf2 = tempfile.NamedTemporaryFile(mode="w", delete=False)
+    for ind in des:
+        sedcmd.append(str(chunks[ind][0]) + "," + str(chunks[ind][1]) + "p")
+    subprocess.run(['sed', '-n', ";".join(sedcmd), Rmd], stdout=tf)
+    tf.close()
+    tf2.close()
+    subprocess.run(['Rscript', '-e',
+        "knitr::purl('" + tf.name + "','" + tf2.name + "')"])
+    return(tf2.name)
+
+
+def post_processing(tempfile, outfile, saveline):
+    with open(outfile + ".R", "w") as of:
+        print("#!/usr/bin/env Rscript\n", file=of)
+        with open(tempfile, "r") as tf:
+            for line in tf:
+                if line.startswith("## ---"):
+                    continue
+                elif line.startswith("## "):
+                    line = line.strip("## ")
+                of.write(line)
+        if saveline:
+            of.write("\nsave(object, file=paste0(Sys.Date(), \"_" + \
+                re.sub(".R", "", outfile) + \
+                ".rda\")")
+    print(outfile + ".R")
+        
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser(description="""Converts an Rmarkdown file
+        into R code""")
+    p.add_argument("-l", "--lines", metavar="-N,N-N,N-", help="""Lines of the
+        original Rmarkdown file to keep. This is adjusted to match Rcode
+        chunk boundaries in the Rmarkdown file; Default: all code chunks""")
+    p.add_argument("-s", "--save", default=True, action="store_false",
+        help="""If true, includes a prototypical Rda save command at the end of
+        the R code""")
+    p.add_argument("-o", "--out", metavar="prefix", help="output prefix")
+    p.add_argument("Rmd", metavar="*.Rmd", help="Rmarkdown file")
+    params = p.parse_args()
+    if params.out == None:
+        params.out = os.path.splitext(os.path.basename(params.Rmd))[0]
+
+
+    chunks = get_chunk_boundaries(params.Rmd)
+    lines = get_line_boundaries(params.lines)
+    des_chunks = intersect(lines, chunks)
+    tempfile = print_chunks(chunks=chunks, des=des_chunks,
+            Rmd=params.Rmd)
+    outfile = get_name(pref=params.out, des=des_chunks)
+    post_processing(tempfile, outfile, params.save)
