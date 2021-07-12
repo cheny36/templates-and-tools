@@ -2,7 +2,12 @@ send(){
     scp "$*" cheny36@openlab:~
 }
 receive(){
-    scp "cheny36@openlab:"$1 .
+    if (( $# > 1 )); then
+        IFS=,; var="$*"
+        scp cheny36@openlab:\{"$var"\} .
+    else
+        scp cheny36@openlab:"$1" .
+    fi
 }
 Rmd(){
     Rscript -e "rmarkdown::render('"$1"')"
@@ -26,6 +31,15 @@ alias preview="open -a Preview "
 export PS1="\u:\W "
 
 export PATH=$PATH":/opt/local/bin"
+export PATH=$PATH":/Users/cheny/Documents/scripts"
+
+
+
+
+
+
+
+
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/Users/cheny/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
