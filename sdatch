@@ -13,8 +13,27 @@ import os.path
 import shutil
 
 
-def set_defaults():
-    return
+def calc_hours(walltime_str):
+    days = 0
+    if ("-" in walltime_str):
+        days, walltime_str, *tmp = walltime_str.split("-")
+    hours, minutes, seconds = [int(i) for i in walltime_str.split(":")]
+    hours = hours + int(days)*24 + minutes*0.001 + seconds*0.001
+    return(hours)
+
+def set_defaults(params):
+    today=date.today()
+    if (params.name == None):
+        params.name = os.path.splitext(os.path.basename(params.command[0]))[0]
+    params.log = "~/logs/" + params.name + "_" + today.strftime("%m%d%Y") + \
+        ".log"
+    params.mail = "END,TIME_LIMIT_80"
+    hours = calc_hours(params.time)
+    if (hours <= 48):
+        params.qos = "dpart"
+    else:
+        params.qos = "scavenger"
+    return(params)
 
 def run_anyways():
     run = None
@@ -46,7 +65,6 @@ def check_script(command):
             run_anyways()
 
 def write_command_script(command, params):
-    today=date.today()
     temp = tempfile.NamedTemporaryFile(mode="w", delete=False)
 
     temp.write("#!/bin/bash\n")
@@ -56,10 +74,9 @@ def write_command_script(command, params):
     temp.write("echo '#SBATCH --cpus-per-task=" + str(params.cpus) + "'\n")
     temp.write("echo '#SBATCH --mem=" + str(params.mem) + "G'\n")
     temp.write("echo '#SBATCH --time=" + params.time + "'\n")
-    temp.write("echo '#SBATCH --qos=dpart'\n")
-    temp.write("echo '#SBATCH -o " + params.name + "_" +
-            today.strftime("%m%d%Y") + ".log'\n")
-    temp.write("echo '#SBATCH --mail-type=END,TIME_LIMIT_80'\n")
+    temp.write("echo '#SBATCH --qos=" + params.qos + "'\n")
+    temp.write("echo '#SBATCH -o " + params.log + "'\n")
+    temp.write("echo '#SBATCH --mail-type=" + params.mail + "'\n")
     temp.write("echo 'jobid: $SLURM_JOB_ID'\n")
     temp.write("echo '" + " ".join(command) + "'\n")
     temp.write(" ".join(command))
@@ -68,22 +85,20 @@ def write_command_script(command, params):
     return temp.name
 
 def submit_script(tfname, params):
-    today=date.today()
     submission = "sbatch" + \
         " -J " + params.name + \
         " --cpus-per-task=" + str(params.cpus) + \
         " --mem=" + str(params.mem) + "G" + \
         " --time=" + params.time + \
-        " --qos=dpart" + \
-        " --mail-type=END,TIME_LIMIT_80" + \
-        " --output=" + params.name + "_" + today.strftime("%m%d%Y") + \
-            ".log" + \
+        " --qos=" + params.qos + \
+        " --mail-type=" + params.mail + \
+        " --output=" + params.log + \
         " " + tfname
     if(params.dryrun):
         print(tfname)
         print(submission)
     else:
-        subprocess.run(submission)
+        subprocess.run(submission.split())
         return 
     
 
@@ -104,8 +119,8 @@ if __name__ == "__main__":
     parser.add_argument("command", metavar="CMD", nargs=argparse.REMAINDER,
             help="command to schedule")
     params = parser.parse_args()
+    params = set_defaults(params)
     check_script(params.command)
-    #set_defaults()
     tfname = write_command_script(params.command, params)
     submit_script(tfname, params)
     
