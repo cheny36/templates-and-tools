@@ -1,0 +1,27 @@
+filetype plugin indent on                                                
+syntax on
+set tabstop=4
+set shiftwidth=4
+set expandtab
+set colorcolumn=80
+set number
+set showmatch
+set matchtime=3
+set hlsearch
+highlight ColorColumn ctermbg=lightgrey
+set undofile
+command R :syntax sync fromstart
+command Summary :execute "normal! i<details style=\"background-color:#F5F5F5\">\<cr><summary style=\"cursor:pointer;\">code</summary>\<cr>```{r, eval=F}\<cr>```\<cr></details>"
+command Mark :execute "normal! i<mark></mark>"
+set viminfo+=<120
+command Rmarkdown !Rscript -e "rmarkdown::render('%:p')"; echo "$(pwd)"%:r".html"
+command Rscript !Rscript %:p
+set shellcmdflag=-ic
+command Filename :execute "%s/rfilename()/\\=\"\\\"\" . expand('%:t:r') . \"\\\"\"/g"
+
+vnoremap <C-N> di <mark><Esc>pi<mark> <Esc>
+
+
+autocmd BufNewFile,BufRead *.Rmd set filetype=Rmd
+autocmd FileType javascript,html,css,c,cpp,h,hpp set tabstop=2 | set shiftwidth=2              
+set viminfo='100,<1000,s100,h
