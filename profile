@@ -85,10 +85,6 @@ export PATH=$PATH":/Applications/CMake.app/Contents/bin/"
 
 export HISTTIMEFORMAT="%F %T "
 
-export GHTOKEN="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"
-export GLTOKEN="gH6ModaC9cC857zX6uzv"
-
-
 
 
 
