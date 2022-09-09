@@ -50,7 +50,6 @@ alias Finder="open -a Finder "
 # PATHS and other environment variables
 export PATH=$PATH":/cbcbhomes/cheny36/tools"
 export PATH=$PATH":/fs/cbcb-scratch/cheny36/tools/mmseqs/bin"
-export GITLAB_PAT="gH6ModaC9cC857zX6uzv"
 export PATH=$PATH:"/fs/cbcb-scratch/cheny36/.miniconda3/condabin"
 export PATH=$PATH:"/cbcbhomes/cheny36/tools/ncbi-blast-2.13.0+/bin"
 
